@@ -75,7 +75,7 @@ model3 = randomForest(classe ~., data = training)
 confusionMatrix(validation$classe, predict(model3, validation))
 ```
 
-The accuracy of this model is `r confusionMatrix(validation$classe, predict(model3, validation))$overall[1]` , which is really nice. It has high sensitivity and also specificity for each classes. 
+The accuracy of this model is `r confusionMatrix(validation$classe, predict(model3, validation))$overall[1]` (~99.5%), which is really nice. It has high sensitivity and also specificity for each classes. 
 
 ### Apply model to testing set
 
