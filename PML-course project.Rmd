@@ -1,0 +1,90 @@
+---
+title: 'Course project: pratical machine learning'
+author: "jinrui yang"
+date: "2018/7/9"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+
+## Background information
+
+This script is written for course project of pratical machine learning from coursera. The goal of this project is using machine learning algorithm to predict the manner in which participants did exercises (presented in 5 classes in the data: A,B,C,D,E). 
+
+>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+## Get and clean data
+
+First import the training data. In the raw data, some columns contain character "#DIV/0!", which is considered as NA when imported. The variables who contain more than 90% of NAs are removed as they are not imformative. Then we are going to remove the first 7 columns which are not relevent to our prediction: X: just a index; user_name: not a good predictor, we dont want to constraint our model to these several persons; timestamps: irrelevent with the practice type; window.
+
+Then we split the data into training set (75%) and validation set (25%). For reproducible reasons, I set seed value to 3325. 
+
+```{r prepare data}
+
+# load data
+data = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", na.strings = c("NA","","#DIV/0!"))
+testing = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", na.strings = c("NA", "", "#DIV/0!"))
+
+col2keep = colnames(data)[colSums(is.na(data))/nrow(data) < 0.9]  # column needs to keep
+
+dataclean = data[,col2keep]
+dataclean = dataclean[,-(1:7)]
+
+# load pacakge and set seed
+library(caret)
+set.seed(3325)
+
+# split the data into training set and validation set
+inTrain = createDataPartition(y = data$classe, p = 0.75, list = FALSE)
+training = dataclean[inTrain,]
+validation = dataclean[-inTrain,]
+
+```
+
+## Build Model
+
+Now we can build model using training data. Three methods are used to build prediction model namely simple decision tree (method = "rpart"), boosting (method = "gbm") and random forest(from package "randomForest"). The models are built based on training set, and then applied to validation set to see their accuracy. 
+
+### simple decision tree
+```{r simple decision tree}
+model1 = train(classe ~ ., data = training, method = "rpart")
+confusionMatrix(validation$classe, predict(model1, validation))
+```
+
+The accuracy of this model is `r confusionMatrix(validation$classe, predict(model1, validation))$overall[1]`, which is quite low. 
+
+### boosting
+```{r boosting}
+model2 = train(classe ~., data = training, method = "gbm")
+confusionMatrix(validation$classe, predict(model2, validation))
+```
+
+The accuracy of this model is `r confusionMatrix(validation$classe, predict(model2, validation))$overall[1]`, looks already quite good. However, this method is a bit time consuming. 
+
+### random forest
+
+```{r random forest}
+library(randomForest)
+model3 = randomForest(classe ~., data = training)
+confusionMatrix(validation$classe, predict(model3, validation))
+```
+
+The accuracy of this model is `r confusionMatrix(validation$classe, predict(model3, validation))$overall[1]` , which is really nice. It has high sensitivity and also specificity for each classes. 
+
+### Apply model to testing set
+
+Random forest model is considered most precise and efficient among the three models. As a result, we will use random forest model as final model to predict the testing set. Here is the final results:
+```{r apply model}
+
+testing = testing[,colnames(testing) %in% col2keep]
+testing = testing[,-(1:7)]
+
+predict(model3, testing)
+
+```
